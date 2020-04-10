@@ -1,0 +1,44 @@
+DROP PROCEDURE IF EXISTS c;
+delimiter //
+create procedure c()
+begin
+DECLARE done INT DEFAULT false;
+declare id varchar(36);
+declare p varchar(45);
+declare ci varchar(45);
+declare cn varchar(45);
+declare a varchar(400);
+declare d json;
+declare s cursor for (SELECT user_id, number,client_id,client_name FROM t_user);
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = true;
+open s;
+out_loop:
+loop
+fetch s into id,p,ci,cn;
+if done
+then leave out_loop;
+end if;
+
+set a = '';
+
+if p<>'' 
+then set a = concat(a, ',\"number\":\"',p,'\"');
+end if;
+if ci<>''
+then set a = concat(a, ',\"clientId\":\"',ci,'\"');
+end if;
+if cn<>''
+then set a = concat(a, ',\"clientName\":\"',cn,'\"');
+end if;
+if a <> '' then
+set a = concat('{',trim(leading ',' from a),'}');
+set d = convert(a, JSON);
+#select JSON_TYPE(a);
+update t_user set json_param= d  where user_id = id;
+end if;
+end loop out_loop;
+close s;
+end //
+delimiter ;
+call c();
+DROP PROCEDURE IF EXISTS c;
