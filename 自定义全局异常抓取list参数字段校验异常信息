@@ -1,0 +1,217 @@
+// 专门的list校验方式
+@Component
+public class CollectionValidator implements Validator {
+
+    private SpringValidatorAdapter validator;
+
+    public CollectionValidator() {
+        this.validator = new SpringValidatorAdapter(Validation.buildDefaultValidatorFactory().getValidator());
+    }
+
+    @Override
+    public boolean supports(Class<?> clazz) {
+        return Collection.class.isAssignableFrom(clazz);
+
+    }
+
+// 方法中进行判断将collection循环校验
+    @Override
+    public void validate(Object target, Errors errors) {
+        if(target instanceof Collection){
+            Collection collection = (Collection)target;
+            for (Object obj : collection) {
+                validator.validate(obj, errors);
+            }
+        }else {
+            validator.validate(target, errors);
+        }
+    }
+}
+
+public class MyException extends BindException {
+
+    private static final long serialVersionUID = 1L;
+
+    private int code;
+
+    public  MyException(BindingResult bindingResult) {
+        this(Constant.ErrorCode.COMMON_ERROR, bindingResult);
+    }
+
+    public MyException(int code, BindingResult bindingResult) {
+        super(bindingResult);
+        this.code = code;
+    }
+
+    public int getCode() {
+        code = 0 == code ? 999 : code;
+        return code;
+    }
+
+    @Override
+    public String getMessage() {
+        StringBuilder strBuilder = new StringBuilder();
+        if(hasFieldErrors()) {
+            strBuilder.append("#FieldError# ");
+            getFieldErrors().forEach(fe-> strBuilder.append(String.format("<%s>(%s)[%s]; ",
+                    fe.getField(), fe.getRejectedValue(), ExceptionErrorMessage.getErrorMessage(fe.getDefaultMessage(), fe.getArguments()))));
+        }
+        return strBuilder.toString();
+    }
+}
+
+// 自定义集合
+public class ValidList<E> implements List<E> {
+// 此处注解必写
+    @Valid
+    private List<E> list = new ArrayList<>();
+
+    public List<E> getList() {
+        return list;
+    }
+
+    public void setList(List<E> list) {
+        this.list = list;
+    }
+
+    @Override
+    public int size() {
+        return list.size();
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return list.isEmpty();
+    }
+
+    @Override
+    public boolean contains(Object o) {
+        return list.contains(o);
+    }
+
+    @Override
+    public Iterator<E> iterator() {
+        return list.iterator();
+    }
+
+    @Override
+    public Object[] toArray() {
+        return list.toArray();
+    }
+
+    @Override
+    public <T> T[] toArray(T[] a) {
+        return list.toArray(a);
+    }
+
+    @Override
+    public boolean add(E e) {
+        return list.add(e);
+    }
+
+    @Override
+    public boolean remove(Object o) {
+        return list.remove(o);
+    }
+
+    @Override
+    public boolean containsAll(Collection<?> c) {
+        return list.contains(c);
+    }
+
+    @Override
+    public boolean addAll(Collection<? extends E> c) {
+        return list.addAll(c);
+    }
+
+    @Override
+    public boolean addAll(int index, Collection<? extends E> c) {
+        return list.addAll(index, c);
+    }
+
+    @Override
+    public boolean removeAll(Collection<?> c) {
+        return list.removeAll(c);
+    }
+
+    @Override
+    public boolean retainAll(Collection<?> c) {
+        return list.retainAll(c);
+    }
+
+    @Override
+    public void clear() {
+        list.clear();
+    }
+
+    @Override
+    public E get(int index) {
+        return list.get(index);
+    }
+
+    @Override
+    public E set(int index, E element) {
+        return list.set(index, element);
+    }
+
+    @Override
+    public void add(int index, E element) {
+        list.add(index, element);
+    }
+
+    @Override
+    public E remove(int index) {
+        return list.remove(index);
+    }
+
+    @Override
+    public int indexOf(Object o) {
+        return list.indexOf(o);
+    }
+
+    @Override
+    public int lastIndexOf(Object o) {
+        return list.lastIndexOf(o);
+    }
+
+    @Override
+    public ListIterator<E> listIterator() {
+        return list.listIterator();
+    }
+
+    @Override
+    public ListIterator<E> listIterator(int index) {
+        return list.listIterator(index);
+    }
+
+    @Override
+    public List<E> subList(int fromIndex, int toIndex) {
+        return list.subList(fromIndex, toIndex);
+    }
+
+}
+
+@RestControllerAdvice
+@Order(value = 0)
+public class GlobalController {
+
+    @ExceptionHandler(value = {MyException.class})
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String MyException(MyException e) {
+        BindingResult br = e.getBindingResult();
+        // 相关异常信息逻辑...
+        String data = "相关异常信息逻辑...";
+        if (CollectionUtils.isEmpty(data)) {
+            return "MyException Error!";
+        }
+        return "MyException Error!" + data;
+    }
+}
+
+// Controller 逻辑
+public BasePushResult vendorGroupPushMessage(@Valid @RequestBody ValidList<DTO> list, BindingResult bindingResult) throws Exception {
+    collectionValidator.validate(list, bindingResult);
+    if(bindingResult.hasErrors()){
+        throw new MyException(bindingResult);
+    }
+}
