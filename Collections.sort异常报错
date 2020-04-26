@@ -1,0 +1,50 @@
+java使用compareTo报Comparison method violates its general contract 异常
+java.lang.IllegalArgumentException: Comparison method violates its general contract!
+
+莫名其妙的出现一个错误，源代码如下：
+
+复制代码
+复制代码
+//对右侧栏进行排序 将 # 丢在最后
+        Collections.sort(mIndexDatas, new Comparator<String>() {
+            @Override
+            public int compare(String lhs, String rhs) {
+                System.setProperty("java.util.Arrays.useLegacyMergeSort", "true");
+                if (lhs.equals("#")) {
+                    return 1;
+                } else if (rhs.equals("#")) {
+                    return -1;
+                } else if(lhs) {
+                    return lhs.compareTo(rhs);
+                }
+            }
+        });
+复制代码
+ 
+
+ 
+复制代码
+这是Android中对联系人界面的排序规则，突然在else中抛出Comparison method violates its general contract!，接着程序崩溃，找了很多资料，遇到很多傻逼，全TM是导出转载的错误答案，为什么说是错误的？因为相同的问题他们的答案根本无法解决这个问题。我与你相同的问题，但是你你转发的答案无法解决这个问题，那么你转发的答案就是错误的，可能是某个人的使用场合或者JDK版本不同而解决的，并不是真正意义上的解决了这个问题，所以，你转载了你未验证的代码，这种程序员，可见一斑。
+
+下面是解决这个问题的代码：
+
+复制代码
+  //对右侧栏进行排序 将 # 丢在最后
+        Collections.sort(mIndexDatas, new Comparator<String>() {
+            @Override
+            public int compare(String lhs, String rhs) {
+                if (lhs != null) return 1;
+                if (rhs != null) return -1;
+                if (lhs.equals("#")) {
+                    return 1;
+                } else if (rhs.equals("#")) {
+                    return -1;
+                } else  {
+                    return lhs.equals( rhs) ? 0 : (lhs.compareTo(rhs)>0 ? 1 : -1);
+                }
+            }
+        });
+复制代码
+看到红色的代码了吗，加上这个判断就行了，原因就是JDK1.8版本的compareTo的算法发生了改变，而且不向下兼容造成的。
+
+除了问题，能自己解决就自己解决，不能自己解决的话，就去国外找答案吧，国内的程序员超过65%都是太垃圾了，而网上的坑爹装载都是这65%的垃圾程序员，为什么这么说？因为搜索的时候肯定会搜到大部分的垃圾装载，不管你是用百度还是必应 o(*￣︶￣*)o
